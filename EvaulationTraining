@@ -1,0 +1,150 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Dec 25 11:38:43 2016
+
+@author: William
+"""
+import random
+import copy
+import numpy as np
+from sklearn.neural_network import MLPRegressor
+from sklearn.externals import joblib
+from Board import Board
+from Players import SimplePlayer
+from Players import RandomPlayer
+from Evaluations import greedyEvaluation
+from Evaluations import featureEvaluation
+from Evaluations import NNEvaluation
+
+
+X = []
+Y = []
+
+evaluation = featureEvaluation()
+for i in range(1000):    
+    board = Board(-1)
+    player1 = RandomPlayer()
+    player2 = RandomPlayer()
+    while len(board.validPlays()) > 0:
+        X += [board.getState()]
+        Y += [evaluation.evaluate(board)]
+        if(board.getColor() == -1):
+            play = player1.play(board)
+            board = board.makePlay(play)
+        elif(board.getColor() == 1):
+            play = player2.play(board)
+            board = board.makePlay(play)
+    
+    
+clf = MLPRegressor(solver='lbfgs', alpha=1e-5, hidden_layer_sizes=(64, 64, 64), random_state=1)
+clf.fit(X, Y)
+joblib.dump(clf, 'NNRegressor.pkl') 
+'''
+board = Board(-1)
+player1 = RandomPlayer()
+player2 = SimplePlayer(NNEvaluation)
+while len(board.validPlays()) > 0:
+    if(board.getColor() == -1):
+        play = player1.play(board)
+        board = board.makePlay(play)
+    elif(board.getColor() == 1):
+        play = player2.play(board)
+        board = board.makePlay(play)
+print(board.getWinner())
+
+
+def mutate(coefs):
+    mutationProbability = .2
+    mutationAmount = .05
+    for i in range(len(coefs)):
+        for j in range(len(coefs[i])):
+            for k in range(len(coefs[i][j])):
+                if(random.random() < mutationProbability):
+                    coefs[i][j][k] += random.random()*mutationAmount-mutationAmount/2
+
+clf1 = joblib.load('NNRegressor.pkl')
+clf2 = joblib.load('NNRegressor2.pkl')
+coefs = clf1.coefs_
+population = [0]*10
+for i in range(10):
+    individual = copy.deepcopy(coefs)
+    mutate(individual)
+    population[i] = individual
+
+for i in range(40):
+    scores = [0]*10
+    for j in range(10):
+        for k in range(j+1,10):
+           clf1.coefs_ = population[j]
+           clf2.coefs_ = population[k]
+           board = Board(-1)
+           player1 = SimplePlayer(NNEvaluation(clf1))
+           player2 = SimplePlayer(NNEvaluation(clf2))
+           while len(board.validPlays()) > 0:
+               if(board.getColor() == -1):
+                   play = player1.play(board)
+                   board = board.makePlay(play)
+               elif(board.getColor() == 1):
+                   play = player2.play(board)
+                   board = board.makePlay(play)
+           winner = board.getWinner()
+           
+           if(winner == -1):
+               scores[j] += 3
+           elif(winner == 1):
+               scores[k] += 3
+           else:
+               scores[j] += 1
+               scores[k] += 1        
+           clf1.coefs_ = population[k]
+           clf2.coefs_ = population[j]
+           board = Board(-1)
+           player1 = SimplePlayer(NNEvaluation(clf1))
+           player2 = SimplePlayer(NNEvaluation(clf2))
+           while len(board.validPlays()) > 0:
+               if(board.getColor() == -1):
+                   play = player1.play(board)
+                   board = board.makePlay(play)
+               elif(board.getColor() == 1):
+                   play = player2.play(board)
+                   board = board.makePlay(play)
+           winner = board.getWinner()
+           if(winner == 1):
+               scores[j] += 3
+           elif(winner == -1):
+               scores[k] += 3
+           else:
+               scores[j] += 1
+               scores[k] += 1
+    median = np.median(scores)
+    newPopulation = []
+    for j in range(10):
+        if(scores[j] >= median):
+            newPopulation += [population[j]]
+        if len(newPopulation) == 5:
+            break
+        
+    for j in range(5):
+        individual = copy.deepcopy(newPopulation[j])
+        mutate(individual)
+        population[2*j] = individual
+        individual = copy.deepcopy(newPopulation[j])
+        mutate(individual)
+        population[2*j+1] = individual
+    print(i)
+ 
+clf1.coefs_ = population[0]
+joblib.dump(clf1, 'NNRegressor1.pkl')
+
+clf2.coefs_ = population[1]
+joblib.dump(clf1, 'NNRegressor2.pkl')
+
+''' 
+      
+         
+    
+
+
+
+    
